@@ -33,6 +33,18 @@
 
     <!-- Include Style Sheet -->
     <link rel="stylesheet" type="text/css" href="css/style.css" />
+
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-114676278-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'UA-114676278-1');
+    </script>
+
+
 </head>
 
 <body>
@@ -65,53 +77,112 @@
             </div>
         </div>
     </div>
-    <!-- Google analytics -->
-    <script>
-        (function (i, s, o, g, r, a, m) {
-        i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
-            (i[r].q = i[r].q || []).push(arguments)
-        }, i[r].l = 1 * new Date(); a = s.createElement(o),
-            m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
-        })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
 
-        ga('create', 'UA-110216718-1', 'auto');
-        ga('send', 'pageview');
-    </script>
-    
+
     <script type="text/javascript">
+        //Parse query function
+        function parse_query_string(query) {
+            var vars = query.split("&");
+            var query_string = {};
+            for (var i = 0; i < vars.length; i++) {
+                var pair = vars[i].split("=");
+                // If first entry with this name
+                if (typeof query_string[pair[0]] === "undefined") {
+                    query_string[pair[0]] = decodeURIComponent(pair[1]);
+                    // If second entry with this name
+                } else if (typeof query_string[pair[0]] === "string") {
+                    var arr = [query_string[pair[0]], decodeURIComponent(pair[1])];
+                    query_string[pair[0]] = arr;
+                    // If third or later entry with this name
+                } else {
+                    query_string[pair[0]].push(decodeURIComponent(pair[1]));
+                }
+            }
+            return query_string;
+        }
 
+        // Init player
+        function InitPlayer(audio){
+        // Init Apmlitude player
+        Amplitude.init({
+            "bindings": {
+                37: 'prev',
+                39: 'next',
+                32: 'play_pause'
+            },
+            "songs": [
+                {
+                    "name": audio.title,
+                    "artist": audio.channel,
+                    "album": audio.album,
+                    "url": audio.url, //"https://521dimensions.com/songs/Ancient Astronauts - Risin' High (feat Raashan Ahmad).mp3"
+                    "cover_art_url": audio.banner //"https://521dimensions.com/img/open-source/amplitudejs/album-art/we-are-to-answer.jpg"
+                }
+            ]
+        });
+    }
 
-            // Init Apmlitude player
-            Amplitude.init({
-                "bindings": {
-                    37: 'prev',
-                    39: 'next',
-                    32: 'play_pause'
-                },
-                "songs": [
-                    {
-                        "name": "Risin' High (feat Raashan Ahmad)",
-                        "artist": "Ancient Astronauts",
-                        "album": "We Are to Answer",
-                        "url": "https://521dimensions.com/songs/Ancient Astronauts - Risin' High (feat Raashan Ahmad).mp3",
-                        "cover_art_url": "https://521dimensions.com/img/open-source/amplitudejs/album-art/we-are-to-answer.jpg"
-                    }
-                ]
-            });
+        (function () {
+            //Test ui
+            audioObj = {audio:{
+                title : "Risin' High (feat Raashan Ahmad)",
+                channel : "Ancient Astronauts",
+                album : "We Are But Hunks of Wood Remixes",
+                url : "https://521dimensions.com/songs/Ancient Astronauts - Risin' High (feat Raashan Ahmad).mp3",
+                banner : "https://521dimensions.com/img/open-source/amplitudejs/album-art/we-are-to-answer.jpg"
+            }}
+            
+            InitPlayer(audioObj.audio);
+            //get akey paramter
+            var query = window.location.search.substring(1);
+            var qs = parse_query_string(query);
 
-            window.onkeydown = function (e) {
-                return !(e.keyCode == 32);
+            //check if audio key is defined
+            if (qs.akey) akey = qs.akey;
+            else {
+                path = window.location.pathname.split('/');
+                akey = path[2];
+            }
+
+            //ga tracking event
+            gtag('send', 'event', 'Audio', 'Init', akey);
+
+            //Init api request
+            var xmlhttp = new XMLHttpRequest();
+            var api = "https://api.audivity.com/audio/get?akey=" + akey + "&lang=en";
+
+            xmlhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    var audioObj = JSON.parse(this.responseText);
+                    audioObj.audio.akey = akey;
+                    console.log(audioObj);
+                    InitPlayer(audioObj.audio);
+
+                }
+                else if (this.status >= 400) {
+                    gtag('send', 'event', 'Audio', 'ERROR-GET' + this.status + '-' + this.responseText.substring(0, 5), 0);
+                }
             };
+            xmlhttp.open("GET", api, true);
+            xmlhttp.send();
 
-            /*
-              Handles a click on the song played progress bar.
-            */
-            document.getElementById('song-played-progress').addEventListener('click', function (e) {
-                var offset = this.getBoundingClientRect();
-                var x = e.pageX - offset.left;
 
-                Amplitude.setSongPlayedPercentage((parseFloat(x) / parseFloat(this.offsetWidth)) * 100);
-            });
+        })();
+
+    //Bind space bar action
+        window.onkeydown = function (e) {
+            return !(e.keyCode == 32);
+        };
+
+        /*
+          Handles a click on the song played progress bar.
+        */
+        document.getElementById('song-played-progress').addEventListener('click', function (e) {
+            var offset = this.getBoundingClientRect();
+            var x = e.pageX - offset.left;
+
+            Amplitude.setSongPlayedPercentage((parseFloat(x) / parseFloat(this.offsetWidth)) * 100);
+        });
     </script>
 </body>
 
